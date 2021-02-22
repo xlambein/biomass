@@ -1,0 +1,7 @@
+hard_tabs = true
+# imports_layout = "HorizontalVertical"
+# max_width = 80
+imports_granularity = "Crate"
+overflow_delimited_expr = true
+group_imports = "StdExternalCrate"
+wrap_comments = true
