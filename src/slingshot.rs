@@ -1,7 +1,4 @@
-use bevy::{
-	prelude::*,
-	render::camera::{Camera, OrthographicProjection},
-};
+use bevy::prelude::*;
 use mouse_tracking::{MousePosPlugin, MousePosWorld};
 
 use crate::{
@@ -20,29 +17,11 @@ impl Plugin for SlingshotPlugin {
 	fn build(&self, app: &mut AppBuilder) {
 		app
 			// Mouse stuff
-			.add_plugin(MousePosPlugin::None)
-			.add_resource(mouse_tracking::MousePosWorld::default())
-			.add_system_to_stage(stage::EVENT, update_pos_ortho.system())
+			.add_plugin(MousePosPlugin::Orthographic)
 			// Slingshot stuff
 			.add_system(load_slingshot.system())
 			.add_system(update_slingshot.system())
 			.add_system(release_slingshot.system());
-	}
-}
-
-pub fn update_pos_ortho(
-	mut mouse_world: ResMut<mouse_tracking::MousePosWorld>,
-	mut event_reader: Local<EventReader<CursorMoved>>,
-	cursor_moved: Res<Events<CursorMoved>>,
-	cameras: Query<(&GlobalTransform, &OrthographicProjection), With<Camera>>,
-) {
-	if let Some(event) = event_reader.latest(&cursor_moved) {
-		let (camera, proj) = cameras
-			.iter()
-			.next()
-			.expect("could not find an orthographic camera");
-		mouse_world.0 = event.position.extend(0.0) + Vec3::new(proj.left, proj.bottom, proj.near);
-		mouse_world.0 = camera.mul_vec3(mouse_world.0);
 	}
 }
 

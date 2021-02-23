@@ -10,5 +10,5 @@ edition = "2018"
 bevy = "0.4"
 # bevy_rng = "0.2"
 rand = "0.8"
-mouse_tracking = { package = "bevy_mouse_tracking_plugin", version = "0.1" }
+mouse_tracking = { package = "bevy_mouse_tracking_plugin", version = "0.1.1" }
 bevy_egui = "0.2"
