@@ -1,7 +1,6 @@
 # Original Game
 
 [ ] Touch screen
-[ ] Screen shake in direction of impact
 [ ] Store materials and stuff in resources
 
 # Improvements

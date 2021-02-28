@@ -1,4 +1,4 @@
-use bevy::{prelude::*, render::camera::Camera};
+use bevy::prelude::*;
 // use bevy_rng::*;
 use rand::prelude::*;
 
@@ -7,11 +7,11 @@ use crate::{
 	constants::{
 		ASTEROID_ANGULAR_VELOCITY, ASTEROID_DESPAWN_DISTANCE, ASTEROID_INIT_VELOCITY_NORMAL,
 		ASTEROID_INIT_VELOCITY_RADIAL, ASTEROID_SPAWN_DISTANCE, ASTEROID_SPRITES, EXPLOSION_FRAMES,
-		EXPLOSION_PERIOD, EXTINCTION_RATE, MENU_WIDTH, N_ASTEROIDS, RECIPES,
-		SCREEN_SHAKE_DAMPENING, SCREEN_SHAKE_INTENSITY, SCREEN_SHAKE_SPEED,
+		EXPLOSION_PERIOD, EXTINCTION_RATE, N_ASTEROIDS, RECIPES,
 	},
 	current_recipe,
 	physics::{AngularVelocity, Velocity},
+	screen_shaker::{ScreenShakeTimer, ScreenShaker},
 	Biomass, CurrentIngredients, IngredientsComparison,
 };
 
@@ -43,16 +43,6 @@ impl Explosion {
 
 pub struct AsteroidSpawerTimer(pub Timer);
 
-pub struct ScreenShakeTimer(pub Timer);
-
-impl ScreenShakeTimer {
-	pub fn new(seconds: f32) -> Self {
-		let mut timer = Timer::from_seconds(seconds, false);
-		timer.set_elapsed(seconds);
-		Self(timer)
-	}
-}
-
 pub fn animate_explosion(
 	time: Res<Time>,
 	commands: &mut Commands,
@@ -73,14 +63,17 @@ pub fn animate_explosion(
 pub fn collision(
 	commands: &mut Commands,
 	texture_atlases: Res<Assets<TextureAtlas>>,
-	asteroids: Query<(Entity, &Transform, &Radius, &Asteroid)>,
+	asteroids: Query<(Entity, &Transform, &Radius, &Velocity, &Asteroid)>,
 	planets: Query<(&Transform, &Radius), With<Planet>>,
+	mut screen_shaker: Query<&mut ScreenShaker>,
 	mut screen_shaker_timer: ResMut<ScreenShakeTimer>,
 	mut biomass: ResMut<Biomass>,
 	mut current_ingredients: ResMut<CurrentIngredients>,
 ) {
 	let mut explosions = vec![];
-	for (entity, asteroid_t, Radius(asteroid_radius), Asteroid(asteroid)) in asteroids.iter() {
+	for (entity, asteroid_t, Radius(asteroid_radius), Velocity(velocity), Asteroid(asteroid)) in
+		asteroids.iter()
+	{
 		for (planet_t, Radius(planet_radius)) in planets.iter() {
 			let r = (planet_t.translation - asteroid_t.translation).length();
 			// If the asteroid collides with the planet
@@ -91,6 +84,12 @@ pub fn collision(
 				// Store the asteroid's location to later spawn an explosion.  We have to do
 				// this because, for some reason, if we do it in the loop, it doesn't work .__.
 				explosions.push(asteroid_t.clone());
+
+				// Reset screen shaker timer & set direction to velocity of the asteroid
+				for mut screen_shaker in screen_shaker.iter_mut() {
+					screen_shaker.direction = velocity.normalize();
+					screen_shaker_timer.0.reset();
+				}
 
 				let ingredients = add_ingredient(&current_ingredients.0, *asteroid);
 				let recipe = &RECIPES[current_recipe(biomass.0)];
@@ -109,11 +108,6 @@ pub fn collision(
 				}
 			}
 		}
-	}
-
-	if explosions.len() > 0 {
-		// Shake the screen if there was any impact
-		screen_shaker_timer.0.reset();
 	}
 
 	// Spawn an explosion for each impact
@@ -176,32 +170,6 @@ pub fn asteroid_despawner(
 	for (asteroid, transform) in query.iter() {
 		if transform.translation.length() > ASTEROID_DESPAWN_DISTANCE {
 			commands.despawn(asteroid);
-		}
-	}
-}
-
-pub fn screen_shaker(
-	time: Res<Time>,
-	mut timer: ResMut<ScreenShakeTimer>,
-	mut cameras: Query<(&mut GlobalTransform, &Camera), With<Camera>>,
-) {
-	let offset = if !timer.0.finished() {
-		timer.0.tick(time.delta_seconds());
-		let elapsed = timer.0.elapsed();
-		(-elapsed * SCREEN_SHAKE_DAMPENING).exp()
-			* (std::f32::consts::TAU * elapsed * SCREEN_SHAKE_SPEED).cos()
-	} else {
-		0.
-	};
-	// TODO smash the screen in the direction of the asteroid's momentum
-	let displacement = Vec2::new(-MENU_WIDTH + offset * SCREEN_SHAKE_INTENSITY, 0.);
-	for (mut transform, camera) in cameras.iter_mut() {
-		if camera.name.as_ref().map_or(false, |name| {
-			name == bevy::render::render_graph::base::camera::CAMERA_2D
-		}) {
-			// TODO instead of overriding the camera location, we should do something
-			// smarter
-			transform.translation = displacement.extend(0.);
 		}
 	}
 }

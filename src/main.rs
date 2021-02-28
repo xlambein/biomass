@@ -4,14 +4,16 @@ mod bodies;
 mod constants;
 mod gui;
 mod physics;
+mod screen_shaker;
 mod slingshot;
 
-use bodies::{AsteroidSpawerTimer, Planet, Radius, ScreenShakeTimer};
+use bodies::{AsteroidSpawerTimer, Planet, Radius};
 use constants::{
 	ASTEROID_SPAWN_PERIOD, INITIAL_BIOMASS, MENU_WIDTH, N_ASTEROIDS, RECIPES, SCREEN_HEIGHT,
-	SCREEN_SHAKE_TIMER_DURATION, SCREEN_WIDTH, SPRITES_BOUNDARIES, VIEWPORT_SCALE,
+	SCREEN_WIDTH, SPRITES_BOUNDARIES, VIEWPORT_SCALE,
 };
 use physics::AngularVelocity;
+use screen_shaker::ScreenShakeBundle;
 
 fn setup(
 	commands: &mut Commands,
@@ -40,11 +42,15 @@ fn setup(
 			vsync: true,
 			..Default::default()
 		})
-		// .spawn(Camera2dBundle::default())
-		.spawn(Camera2dBundle {
-			transform: Transform::from_translation(Vec3::new(-MENU_WIDTH, 0., 0.))
-				* Transform::from_scale(Vec3::splat(1. / VIEWPORT_SCALE)),
-			..Default::default()
+		// Screen shaker
+		.spawn(ScreenShakeBundle::default())
+		.with_children(|parent| {
+			// Camera
+			parent.spawn(Camera2dBundle {
+				transform: Transform::from_translation(Vec3::new(-MENU_WIDTH, 0., 0.))
+					* Transform::from_scale(Vec3::splat(1. / VIEWPORT_SCALE)),
+				..Default::default()
+			});
 		})
 		// Planet
 		.spawn(SpriteSheetBundle {
@@ -78,8 +84,7 @@ fn main() {
 		// Slingshot
 		.add_plugin(slingshot::SlingshotPlugin)
 		// Screen shake
-		.add_resource(ScreenShakeTimer::new(SCREEN_SHAKE_TIMER_DURATION))
-		.add_system(bodies::screen_shaker.system())
+		.add_plugin(screen_shaker::ScreenShakePlugin)
 		// Biomass stuff
 		.add_resource(Biomass(INITIAL_BIOMASS))
 		.add_resource(CurrentIngredients::new())
